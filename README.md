@@ -77,8 +77,12 @@ These five principles are not slogans — each one maps to a concrete, enforced 
 | Framework | **Spring Boot 4.x** (Spring Framework 7) | First-class Java 25 support; fully modularized starter jars align with our module-per-context model. |
 | Modularity | **Spring Modulith** | Runtime boundary verification, module events, documentation generation, externalization hooks for future extraction. |
 | Build | **Maven (multi-module reactor)** | Compile-time boundary enforcement via the module graph + an internal BOM. |
-| Persistence | **PostgreSQL** + Spring Data JPA / JDBC | Mature, shard-friendly, strong transactional guarantees per shard. |
-| Migrations | **Flyway** | Versioned, per-module migration ownership. |
+| Persistence | **PostgreSQL** + **MyBatis (MyBatis-Spring)** | Explicit, reviewable SQL and full control over shard-aware queries — no ORM lazy-loading or hidden N+1 surprises. JPA is intentionally **not** used. |
+| Mapping | **ModelMapper** | DTO ↔ domain mapping, kept out of controllers and persistence. |
+| Validation & i18n | **Jakarta Bean Validation + Spring `MessageSource`** | Inputs validated at the edge; all error/exception text resolved through i18n message resolvers. |
+| Errors | **Centralized `@RestControllerAdvice` → `ProblemDetail`** | One exception handler; responses never carry raw error codes. |
+| Migrations | **Flyway/Liquibase, run from infra** | Versioned, per-module scripts, **executed by a migration container — never by a Spring service**. |
+| Scaffolding | **Spring Boot CLI `spring init` (via SDKMAN)** | Every module/service generated from the CLI; no hand-rolled skeletons. |
 | Cache / Cart / Queue | **Redis** | Hot reads, cart state, rate limiting, and the initial job queue (graduates to Kafka on extraction). |
 | Async / Events | **Outbox + Spring Modulith events** → `job-engine` | Reliable, in-process now; externalizable later without changing publishers. |
 | Search | **OpenSearch / Postgres FTS (Phase 6)** | Start with Postgres FTS, graduate to OpenSearch when catalog/order volume demands. |
@@ -103,8 +107,8 @@ shopify-clone/
 ├── platform/                       # shared starters — the only thing domain modules may depend on
 │   ├── platform-bom/               # internal BOM: pins every internal + third-party version
 │   ├── platform-core/              # Money, Result<T>, typed Ids, Clock, base DomainEvent (sealed)
-│   ├── platform-web/               # ProblemDetail handlers, API versioning, rate-limit, pagination
-│   ├── platform-persistence/       # shard router, base repository, JPA/auditing config, Flyway runner
+│   ├── platform-web/               # central exception handler → ProblemDetail, i18n MessageSource, Bean Validation, ModelMapper, API versioning, rate-limit, pagination
+│   ├── platform-persistence/       # shard router, MyBatis-Spring config (SqlSessionFactory per shard), base mapper support, auditing — no migration runner
 │   ├── platform-events/            # event publisher, transactional outbox, externalization SPI
 │   ├── platform-security/          # auth filter, principal, TenantContext (scoped value), RBAC
 │   ├── platform-observability/     # tracing, metrics, structured logging, module tagging
@@ -160,14 +164,16 @@ catalog-impl/           (internal — sealed off; nothing outside compiles again
 └── com.shop.catalog.internal
     ├── domain/                     # Product, Variant, Collection (aggregates), invariants
     ├── application/                # ProductCatalogService implements ...api.ProductCatalog
-    ├── persistence/                # entities, repositories, mappers (shard-aware)
+    ├── persistence/                # MyBatis mappers (@Mapper + XML/result maps), row records, shard-aware SqlSession
     └── web/                        # REST controllers for admin/storefront catalog endpoints
 ```
 
 Rules:
+- The module itself was generated with **`spring init`** — the skeleton is never hand-rolled.
 - The `internal` package is the module's private world. **Spring Modulith forbids** other modules from referencing it.
 - The implementation of an `api` port is a Spring bean. Other modules **inject the interface**, never the concrete class.
-- DTOs crossing a boundary are `record`s in `*-api`. Domain entities never leave `impl`.
+- DTOs crossing a boundary are `record`s in `*-api`. Domain entities and **MyBatis types never leave `impl`**.
+- **ModelMapper** handles DTO ↔ domain conversion; controllers and persistence don't hand-map fields.
 - Domain events are `sealed interface` hierarchies in `*-api` so consumers get exhaustive `switch`.
 
 ---
@@ -206,7 +212,8 @@ The database is the scaling ceiling, so it gets designed first — even though l
 - **Cache is never the source of truth.** A cold cache must always be correct, just slower.
 
 **Migrations.**
-- Each module owns its Flyway scripts under `db/migration/<module>`; no module edits another's schema.
+- Each module owns its migration scripts under `db/migration/<module>`; no module edits another's schema.
+- Scripts are **applied from the infrastructure layer — a dedicated migration container/job — never by the Spring app at startup.** The app assumes the schema already exists.
 - Every tenant table includes `shop_id` (NOT NULL) and is indexed on it. CI lints for this.
 
 ---
@@ -245,16 +252,16 @@ Three layers, all in CI. A boundary violation **fails the build**.
 
 1. **Maven module graph** — `*-impl` simply cannot see another `*-impl` on the classpath; it isn't a declared dependency. This is the strongest, earliest signal.
 2. **Spring Modulith `ApplicationModules.verify()`** — a test asserts no module references another module's `internal` package and that the dependency graph has no illegal cycles.
-3. **ArchUnit rules** — package-level rules (e.g. "controllers may not touch persistence directly", "no `jakarta.persistence` types in `*-api`", "events are records/sealed").
+3. **ArchUnit rules** — package-level rules (e.g. "controllers may not touch persistence directly", "no MyBatis/persistence types in `*-api`", "events are records/sealed").
 
 ---
 
 ## 12. Build & Run
 
 **Prerequisites**
-- JDK 25 (Temurin/Liberica recommended)
+- **SDKMAN** → JDK 25 (Temurin/Liberica) + **Spring Boot CLI** (`spring init`, for scaffolding new modules)
 - Maven 3.9+
-- Docker (Testcontainers + local Postgres/Redis)
+- Docker (Testcontainers + official Postgres/Redis images)
 
 **Common commands**
 ```bash
@@ -387,6 +394,19 @@ Backend (Phases 0–8)  →  Infra + DevOps + Deploy (Phase 9)  →  API Docs fr
 - Frontend assets / SSR ship through the **same CDN** in the Phase 9 topology.
 
 Full per-phase checklists for deployment, documentation, and the frontend are in [`ROADMAP.md`](./ROADMAP.md) Phases 9–11.
+
+---
+
+## 20. Engineering Conventions (non-negotiable)
+
+These exist to keep the codebase boring and uniform — the opposite of "coding hell." They are enforced in review and, where possible, in CI.
+
+- **Scaffolding — always `spring init`.** Every Spring module/service is generated with the **Spring Boot CLI** (installed via **SDKMAN**), so parent POM, BOM, and plugins are correct and identical everywhere. Hand-rolled module skeletons are rejected.
+- **Data access — MyBatis, not JPA.** Queries are explicit MyBatis mappers (`@Mapper` + XML/result maps). This keeps SQL reviewable and shard-aware, with no ORM lazy-loading or hidden N+1s. JPA is intentionally absent.
+- **Migrations — from infrastructure, not the app.** Schema is applied by a dedicated **migration container/job** (Flyway/Liquibase) in the infra layer, shard-aware. **No Spring service runs migrations**, at startup or otherwise; the app assumes the schema exists.
+- **Mapping — ModelMapper.** DTO ↔ domain conversion goes through ModelMapper, not field copying scattered across controllers and persistence.
+- **Validation + i18n + errors — centralized.** Inputs use **Jakarta Bean Validation**; every exception is handled by **one** `@RestControllerAdvice` returning `ProblemDetail`, with messages resolved through an i18n **`MessageSource`**. **Responses never expose raw error codes** — clients get a resolved, localized problem document.
+- **Containers & charts — reuse, don't reinvent.** Use **official/community** Docker images, Compose files, and Helm charts (e.g. Bitnami) rather than hand-authoring them. The Spring app's `Dockerfile` uses **extracted layered jars** (`dependencies`, `spring-boot-loader`, `snapshot-dependencies`, `application`) so unchanged dependency layers stay cached between builds.
 
 ---
 
