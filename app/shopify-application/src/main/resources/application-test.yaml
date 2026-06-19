@@ -1,0 +1,7 @@
+# Datasource + Redis are supplied at runtime by Testcontainers @ServiceConnection.
+# Schema is applied by the test harness via Flyway (test-scoped), never by the app.
+spring:
+  data:
+    redis:
+      repositories:
+        enabled: false

@@ -117,22 +117,22 @@ Each phase ends with a **Phase DoD** — don't start the next phase until it's m
 
 _Goal: the skeleton that makes every later phase safe. No business features yet._
 
-- [ ] **Toolchain via SDKMAN**: JDK 25 + **Spring Boot CLI**. **Every Spring module/service is generated with `spring init`** (correct parent, BOM, plugins) — never hand-rolled.
-- [ ] Reactor `pom.xml` with `<modules>`, `pluginManagement`, `maven-enforcer-plugin`.
-- [ ] `platform-bom` pinning all internal + third-party versions (Spring Boot 4.x, Modulith, **MyBatis-Spring**, **ModelMapper**, migration tool, Testcontainers…).
-- [ ] `platform-core`: `Money`, `Result<T>`, typed `Id` value objects, `Clock`, sealed `DomainEvent` base.
-- [ ] `platform-persistence`: shard-aware datasource routing, **MyBatis-Spring config (`SqlSessionFactory` + mapper scanning per shard)**, base mapper support, auditing. **No migration runner in the app** — schema is applied by the infra/migration container.
-- [ ] `platform-events`: event publisher + **transactional outbox** + externalization SPI (no-op for now).
-- [ ] `platform-security`: auth filter scaffold, `Principal`, `TenantContext` as a **scoped value**, RBAC primitives.
-- [ ] `platform-web`: **centralized exception handler** (`@RestControllerAdvice` → `ProblemDetail`) with **i18n `MessageSource` resolvers** (no raw error codes out), **Bean Validation** wiring, **ModelMapper** config, API versioning, pagination, rate-limit filter.
-- [ ] `platform-observability`: OTel tracing, Micrometer, structured JSON logging with `module`/`shop_id` tags.
-- [ ] `platform-jobs`: `@Job`, `JobScheduler`, retry/backoff/dead-letter contracts.
-- [ ] `job-engine`: worker runtime that drains the outbox and runs `@Job` handlers idempotently.
-- [ ] `app/shopify-application`: bootstrap, profiles (`local`/`test`/`staging`/`prod`), `spring.threads.virtual.enabled=true`.
-- [ ] **Migration container** (e.g. Flyway/Liquibase image) owns schema application across shards from the **infra layer** — scaffolded here, wired into the pipeline in Phase 9.
-- [ ] **Local dev** uses **official/community images** via an official Compose setup (Postgres, Redis) — not hand-written compose files; the app `Dockerfile` uses **Spring Boot extracted layered jars**.
-- [ ] CI: `mvn verify`, **`ApplicationModules.verify()`** test, ArchUnit ruleset, Testcontainers in CI.
-- [ ] One **vertical "hello tenant" slice**: resolve tenant → route to shard → read a trivial row → emit an event → job logs it. Proves the whole spine end to end.
+- [x] **Toolchain via SDKMAN**: JDK 25 + **Spring Boot CLI**. **Every Spring module/service is generated with `spring init`** (correct parent, BOM, plugins) — never hand-rolled.
+- [x] Reactor `pom.xml` with `<modules>`, `pluginManagement`, `maven-enforcer-plugin`.
+- [x] `platform-bom` pinning all internal + third-party versions (Spring Boot 4.x, Modulith, **MyBatis-Spring**, **ModelMapper**, migration tool, Testcontainers…).
+- [x] `platform-core`: `Money`, `Result<T>`, typed `Id` value objects, `Clock`, sealed `DomainEvent` base.
+- [x] `platform-persistence`: shard-aware datasource routing, **MyBatis-Spring config (`SqlSessionFactory` + mapper scanning per shard)**, base mapper support, auditing. **No migration runner in the app** — schema is applied by the infra/migration container.
+- [x] `platform-events`: event publisher + **transactional outbox** + externalization SPI (no-op for now).
+- [x] `platform-security`: auth filter scaffold, `Principal`, `TenantContext` as a **scoped value**, RBAC primitives.
+- [x] `platform-web`: **centralized exception handler** (`@RestControllerAdvice` → `ProblemDetail`) with **i18n `MessageSource` resolvers** (no raw error codes out), **Bean Validation** wiring, **ModelMapper** config, API versioning, pagination, rate-limit filter.
+- [x] `platform-observability`: OTel tracing, Micrometer, structured JSON logging with `module`/`shop_id` tags.
+- [x] `platform-jobs`: `@Job`, `JobScheduler`, retry/backoff/dead-letter contracts.
+- [x] `job-engine`: worker runtime that drains the outbox and runs `@Job` handlers idempotently.
+- [x] `app/shopify-application`: bootstrap, profiles (`local`/`test`/`staging`/`prod`), `spring.threads.virtual.enabled=true`.
+- [x] **Migration container** (e.g. Flyway/Liquibase image) owns schema application across shards from the **infra layer** — scaffolded here, wired into the pipeline in Phase 9.
+- [x] **Local dev** uses **official/community images** via an official Compose setup (Postgres, Redis) — not hand-written compose files; the app `Dockerfile` uses **Spring Boot extracted layered jars**.
+- [x] CI: `mvn verify`, **`ApplicationModules.verify()`** test, ArchUnit ruleset, Testcontainers in CI.
+- [x] One **vertical "hello tenant" slice**: resolve tenant → route to shard → read a trivial row → emit an event → job logs it. Proves the whole spine end to end.
 
 **Phase 0 DoD:** empty app boots on `local`; tenant context → shard routing works with `shard-count=1`; outbox→job round-trips an event; boundary verification + ArchUnit run in CI and can fail a bad PR.
 
