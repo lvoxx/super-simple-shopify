@@ -18,10 +18,11 @@ It has two jobs:
 - [ ] I can name the **single module** this change belongs to. (If it spans modules, I'll split it.)
 - [ ] The change lives in `*-impl` (or `*-api` if it's a contract change), **never** in another module's internals.
 - [ ] If new behavior is cross-cutting (logging, validation, persistence base, ids, money), it belongs in `platform-*`, not copied into a module.
+- [ ] If I'm creating a **new Spring module/service**, I generate it with **`spring init`** (Spring Boot CLI, installed via SDKMAN) — never hand-roll the skeleton.
 
 ### 1b. Boundaries
 - [ ] This module does **not** import another module's `*-impl` / `internal` package. (Maven won't even let it — confirm the dependency I'm about to add is an `*-api`/`*-spi`/`platform-*`.)
-- [ ] Any data crossing a module boundary is a **record DTO** in `*-api`, not a JPA entity.
+- [ ] Any data crossing a module boundary is a **record DTO** in `*-api`, not a persistence type (MyBatis-mapped row / `@Mapper`).
 - [ ] Cross-module communication uses the right channel:
   - Needs an immediate answer AND must roll back together → **inject the `*-api` interface** (sync).
   - Side effect that must not fail/block the request → **publish a domain event** (async, via outbox).
@@ -44,7 +45,7 @@ It has two jobs:
 ### 1f. Tests & enforcement
 - [ ] I'll add/extend a **module-slice test** that passes with only this module + `platform-*` on the classpath.
 - [ ] `ApplicationModules.verify()` and ArchUnit rules will still pass.
-- [ ] I own the Flyway migration under `db/migration/<module>` and haven't touched another module's schema.
+- [ ] My schema change is a migration script under `db/migration/<module>` (authored in the repo, **applied by the infra/migration container — never by a Spring service at startup**), and doesn't touch another module's schema.
 
 ### 1g. Monolith discipline
 - [ ] I am **not** introducing a second deployable, a network hop, or a distributed transaction.
@@ -67,8 +68,9 @@ A change is Done only when **all** of these hold:
 - [ ] Code compiles in the reactor (`./mvnw verify`) with boundary checks green.
 - [ ] Module-slice tests + relevant integration tests (Testcontainers) pass.
 - [ ] `verify()` (Modulith) + ArchUnit boundary rules pass.
-- [ ] New tenant tables carry `shop_id` + index; migration is module-owned and forward-only.
+- [ ] New tenant tables carry `shop_id` + index; migration is module-owned, forward-only, and **run from the infra/migration container, not the app**.
 - [ ] New side effects go through the outbox; handlers are idempotent.
+- [ ] Data access uses **MyBatis** (no JPA); DTO ↔ domain mapping uses **ModelMapper**; inputs are **validated**; errors flow through the **centralized exception handler** with **i18n-resolved messages** — no raw error codes in responses.
 - [ ] Public surface changes are in `*-api` only; DTOs are records; events are sealed.
 - [ ] Observability: new paths emit metrics/traces tagged with `module` + `shop_id`.
 - [ ] README/module docs updated **in the same PR** if the contract or shape changed.
@@ -82,12 +84,16 @@ Stop and get explicit sign-off if a change would:
 - Add a **second deployable** or split the monolith.
 - Introduce a **synchronous cross-module call that can fail the request** without a clear "must roll back together" reason.
 - Add a **cross-shard join, query, or FK** on a transactional path.
-- Put a **JPA entity or persistence type in a `*-api`** module.
+- Put a **persistence type (MyBatis row / `@Mapper`) in a `*-api`** module.
 - Make a module depend on another module's `*-impl`.
 - Add a side effect **inline** in a request handler instead of via an event.
 - Introduce a **distributed transaction** or two-phase commit.
 - Add a new third-party dependency **not pinned in `platform-bom`**.
 - Build frontend against an **endpoint not in the frozen v1 OpenAPI spec**, or change a published `*-api` contract without a **version bump**.
+- **Hand-create a Spring module/service skeleton** instead of generating it with `spring init`.
+- **Run a database migration from a Spring service / app startup** instead of the infra/migration container.
+- **Return a raw error code** in a response instead of routing it through the centralized exception handler with i18n message resolution.
+- **Hand-author a Docker Compose file or Helm chart template** when an official/community one exists, or ship a Spring image whose `Dockerfile` doesn't use **extracted layered jars**.
 
 ---
 
@@ -101,17 +107,20 @@ Each phase ends with a **Phase DoD** — don't start the next phase until it's m
 ### Phase 0 — Foundation & Guardrails
 *Goal: the skeleton that makes every later phase safe. No business features yet.*
 
+- [ ] **Toolchain via SDKMAN**: JDK 25 + **Spring Boot CLI**. **Every Spring module/service is generated with `spring init`** (correct parent, BOM, plugins) — never hand-rolled.
 - [ ] Reactor `pom.xml` with `<modules>`, `pluginManagement`, `maven-enforcer-plugin`.
-- [ ] `platform-bom` pinning all internal + third-party versions (Spring Boot 4.x, Modulith, Flyway, Testcontainers…).
+- [ ] `platform-bom` pinning all internal + third-party versions (Spring Boot 4.x, Modulith, **MyBatis-Spring**, **ModelMapper**, migration tool, Testcontainers…).
 - [ ] `platform-core`: `Money`, `Result<T>`, typed `Id` value objects, `Clock`, sealed `DomainEvent` base.
-- [ ] `platform-persistence`: shard-aware datasource routing, base repository, JPA/auditing config, Flyway runner.
+- [ ] `platform-persistence`: shard-aware datasource routing, **MyBatis-Spring config (`SqlSessionFactory` + mapper scanning per shard)**, base mapper support, auditing. **No migration runner in the app** — schema is applied by the infra/migration container.
 - [ ] `platform-events`: event publisher + **transactional outbox** + externalization SPI (no-op for now).
 - [ ] `platform-security`: auth filter scaffold, `Principal`, `TenantContext` as a **scoped value**, RBAC primitives.
-- [ ] `platform-web`: `ProblemDetail` exception handling, API versioning, pagination, rate-limit filter.
+- [ ] `platform-web`: **centralized exception handler** (`@RestControllerAdvice` → `ProblemDetail`) with **i18n `MessageSource` resolvers** (no raw error codes out), **Bean Validation** wiring, **ModelMapper** config, API versioning, pagination, rate-limit filter.
 - [ ] `platform-observability`: OTel tracing, Micrometer, structured JSON logging with `module`/`shop_id` tags.
 - [ ] `platform-jobs`: `@Job`, `JobScheduler`, retry/backoff/dead-letter contracts.
 - [ ] `job-engine`: worker runtime that drains the outbox and runs `@Job` handlers idempotently.
 - [ ] `app/shopify-application`: bootstrap, profiles (`local`/`test`/`staging`/`prod`), `spring.threads.virtual.enabled=true`.
+- [ ] **Migration container** (e.g. Flyway/Liquibase image) owns schema application across shards from the **infra layer** — scaffolded here, wired into the pipeline in Phase 9.
+- [ ] **Local dev** uses **official/community images** via an official Compose setup (Postgres, Redis) — not hand-written compose files; the app `Dockerfile` uses **Spring Boot extracted layered jars**.
 - [ ] CI: `mvn verify`, **`ApplicationModules.verify()`** test, ArchUnit ruleset, Testcontainers in CI.
 - [ ] One **vertical "hello tenant" slice**: resolve tenant → route to shard → read a trivial row → emit an event → job logs it. Proves the whole spine end to end.
 
@@ -229,10 +238,10 @@ Each phase ends with a **Phase DoD** — don't start the next phase until it's m
 *Prerequisite: Phases 0–8 Done.*
 
 - [ ] **IaC** for the full topology (CDN, load balancer, app replicas, sharded Postgres primaries + read replicas, Redis, object storage) — version-controlled (e.g. Terraform).
-- [ ] **Container image**: multi-stage build on a JDK 25 runtime; one image for the single deployable; virtual threads enabled.
-- [ ] **Orchestration**: containers behind the LB with rolling, zero-downtime deploys (e.g. Kubernetes + Helm + GitOps/ArgoCD, or a simpler container host — monolith-first doesn't require a service mesh).
+- [ ] **Container image**: `Dockerfile` uses **Spring Boot extracted layered jars** (`dependencies`, `spring-boot-loader`, `snapshot-dependencies`, `application`) so unchanged dependency layers stay cached across builds; JDK 25 runtime; one image for the single deployable.
+- [ ] **Orchestration**: containers behind the LB with rolling, zero-downtime deploys (e.g. Kubernetes + GitOps/ArgoCD, or a simpler container host — monolith-first needs no service mesh). Use **official/community Helm charts** (e.g. Bitnami Postgres/Redis) — **don't hand-author chart templates**.
 - [ ] **CI/CD pipeline**: commit → `mvn verify` (incl. boundary + ArchUnit) → image build → **staging** → smoke → **prod**, with a manual gate before prod.
-- [ ] **Migrations on deploy**: Flyway runs forward-only, **shard-aware across all shards**, as a gated pipeline step.
+- [ ] **Migrations on deploy**: run from the **infra layer — a dedicated migration container/job** (Flyway/Liquibase image), forward-only and **shard-aware across all shards**, as a gated pipeline step. **No Spring service applies migrations.**
 - [ ] **Config & secrets** per environment via a secrets manager; nothing sensitive in images or VCS.
 - [ ] **Observability stack deployed**: metrics/traces/logs backends, per-module dashboards, alerts (checkout-latency SLO, job lag, DLQ size, shard/replica health).
 - [ ] **Resilience**: readiness gated on shard reachability; replica/HPA autoscaling; graceful shutdown drains in-flight requests + job workers.
@@ -295,7 +304,7 @@ Each phase ends with a **Phase DoD** — don't start the next phase until it's m
 - [ ] Carve the module's schema onto its own datastore; backfill + dual-write cutover.
 - [ ] Stand up the new deployable; route traffic; decommission the in-process path.
 
-**Phase 9 DoD:** exactly one module runs as a separate service, consumers are unchanged at the source level (same `*-api`), and the monolith still owns everything that lacked a trigger.
+**Phase 12 DoD:** exactly one module runs as a separate service, consumers are unchanged at the source level (same `*-api`), and the monolith still owns everything that lacked a trigger.
 
 ---
 
