@@ -1,0 +1,28 @@
+# Base config shared by every profile. Profile-specific datasource/redis live in the
+# application-<profile>.yaml files. The app assumes the schema already exists — it never runs
+# migrations (the infra migration container owns that).
+spring:
+  application:
+    name: shopify-application
+  threads:
+    virtual:
+      enabled: true            # JDK 25 virtual threads for the whole request/worker path
+  profiles:
+    default: local
+
+mybatis:
+  configuration:
+    map-underscore-to-camel-case: true
+  mapper-locations: classpath*:com/shop/**/*.xml
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics
+
+platform:
+  persistence:
+    shard-count: 1             # Phase 0 baseline; Phase 8 proves shard-count > 1
+  jobs:
+    poll-interval-ms: 1000

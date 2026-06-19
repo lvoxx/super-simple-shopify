@@ -1,0 +1,10 @@
+# Local single-shard dev against the official Postgres + Redis images (docker compose).
+spring:
+  datasource:
+    url: jdbc:postgresql://localhost:5432/shopify
+    username: shopify
+    password: shopify
+  data:
+    redis:
+      host: localhost
+      port: 6379

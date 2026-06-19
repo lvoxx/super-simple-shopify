@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+		"https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.shop.platform.events.OutboxMapper">
+
+	<resultMap id="outboxResultMap" type="com.shop.platform.events.OutboxRecord">
+		<id property="eventId" column="event_id"/>
+		<result property="shopId" column="shop_id"/>
+		<result property="eventType" column="event_type"/>
+		<result property="payload" column="payload"/>
+		<result property="occurredAt" column="occurred_at"/>
+		<result property="status" column="status"/>
+		<result property="attempts" column="attempts"/>
+	</resultMap>
+
+	<insert id="insert" parameterType="com.shop.platform.events.OutboxRecord">
+		INSERT INTO platform_outbox (event_id, shop_id, event_type, payload, occurred_at, status, attempts)
+		VALUES (#{eventId}, #{shopId}, #{eventType}, #{payload}, #{occurredAt}, #{status}, #{attempts})
+	</insert>
+
+	<select id="findPending" resultMap="outboxResultMap">
+		SELECT event_id, shop_id, event_type, payload, occurred_at, status, attempts
+		FROM platform_outbox
+		WHERE status = 'PENDING'
+		ORDER BY occurred_at
+		LIMIT #{limit}
+	</select>
+
+	<update id="markProcessed">
+		UPDATE platform_outbox SET status = 'PROCESSED' WHERE event_id = #{eventId}
+	</update>
+
+	<update id="markFailed">
+		UPDATE platform_outbox SET attempts = #{attempts} WHERE event_id = #{eventId}
+	</update>
+
+	<update id="markDead">
+		UPDATE platform_outbox SET status = 'DEAD' WHERE event_id = #{eventId}
+	</update>
+
+</mapper>

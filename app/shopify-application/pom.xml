@@ -1,0 +1,98 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+		 xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+		 xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+	<modelVersion>4.0.0</modelVersion>
+	<parent>
+		<groupId>com.shop</groupId>
+		<artifactId>shopify-parent</artifactId>
+		<version>0.0.1-SNAPSHOT</version>
+		<relativePath>../../pom.xml</relativePath>
+	</parent>
+	<artifactId>shopify-application</artifactId>
+	<name>shopify-application</name>
+	<description>The single deployable: assembles every platform module + the job-engine runtime</description>
+
+	<dependencies>
+		<!-- Platform spine -->
+		<dependency><groupId>com.shop</groupId><artifactId>platform-core</artifactId></dependency>
+		<dependency><groupId>com.shop</groupId><artifactId>platform-persistence</artifactId></dependency>
+		<dependency><groupId>com.shop</groupId><artifactId>platform-events</artifactId></dependency>
+		<dependency><groupId>com.shop</groupId><artifactId>platform-security</artifactId></dependency>
+		<dependency><groupId>com.shop</groupId><artifactId>platform-observability</artifactId></dependency>
+		<dependency><groupId>com.shop</groupId><artifactId>platform-jobs</artifactId></dependency>
+		<dependency><groupId>com.shop</groupId><artifactId>platform-web</artifactId></dependency>
+		<dependency><groupId>com.shop</groupId><artifactId>job-engine</artifactId></dependency>
+
+		<!-- Runtime -->
+		<dependency>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-starter-actuator</artifactId>
+		</dependency>
+		<dependency>
+			<groupId>org.springframework.modulith</groupId>
+			<artifactId>spring-modulith-starter-core</artifactId>
+		</dependency>
+		<dependency>
+			<groupId>org.postgresql</groupId>
+			<artifactId>postgresql</artifactId>
+			<scope>runtime</scope>
+		</dependency>
+
+		<!-- Tests -->
+		<dependency>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-starter-test</artifactId>
+			<scope>test</scope>
+		</dependency>
+		<dependency>
+			<groupId>com.shop</groupId>
+			<artifactId>platform-test</artifactId>
+			<version>${project.version}</version>
+			<scope>test</scope>
+		</dependency>
+		<dependency>
+			<groupId>org.springframework.modulith</groupId>
+			<artifactId>spring-modulith-starter-test</artifactId>
+			<scope>test</scope>
+		</dependency>
+		<dependency>
+			<groupId>com.tngtech.archunit</groupId>
+			<artifactId>archunit-junit5</artifactId>
+			<scope>test</scope>
+		</dependency>
+		<dependency>
+			<groupId>org.flywaydb</groupId>
+			<artifactId>flyway-core</artifactId>
+			<scope>test</scope>
+		</dependency>
+		<dependency>
+			<groupId>org.flywaydb</groupId>
+			<artifactId>flyway-database-postgresql</artifactId>
+			<scope>test</scope>
+		</dependency>
+	</dependencies>
+
+	<build>
+		<plugins>
+			<plugin>
+				<groupId>org.springframework.boot</groupId>
+				<artifactId>spring-boot-maven-plugin</artifactId>
+				<configuration>
+					<!-- Extracted layered jars: dependencies / spring-boot-loader /
+					     snapshot-dependencies / application layers for cache-friendly images. -->
+					<layers>
+						<enabled>true</enabled>
+					</layers>
+				</configuration>
+				<executions>
+					<execution>
+						<goals>
+							<goal>repackage</goal>
+						</goals>
+					</execution>
+				</executions>
+			</plugin>
+		</plugins>
+	</build>
+</project>
