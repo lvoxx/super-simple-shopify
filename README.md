@@ -1,7 +1,7 @@
 # Shopify Clone — Modular Monolith
 
 A multi-tenant commerce platform built as a **modular monolith** on **Java 25** and **Spring Boot 4.x**.
-One deployable artifact, hard internal boundaries, and a data layer designed to shard from day one — so the system stays cheap and fast to build now, and can shed modules into services later *without a rewrite*.
+One deployable artifact, hard internal boundaries, and a data layer designed to shard from day one — so the system stays cheap and fast to build now, and can shed modules into services later _without a rewrite_.
 
 > Read this README to understand **how the system is shaped and why**.
 > Before writing any code, read [`ROADMAP.md`](./ROADMAP.md) — it is the per-change checklist that keeps us inside these boundaries.
@@ -11,7 +11,7 @@ One deployable artifact, hard internal boundaries, and a data layer designed to 
 ## 1. TL;DR
 
 - **One process, many modules.** Each bounded context is a Maven module with a public `api`/`spi` surface and a sealed `impl`. Modules never reach into each other's internals.
-- **Monolith first, services later.** We deliberately avoid microservices until a module *earns* extraction (independent scaling, independent release cadence, or team ownership). The boundaries make extraction a deployment change, not a redesign.
+- **Monolith first, services later.** We deliberately avoid microservices until a module _earns_ extraction (independent scaling, independent release cadence, or team ownership). The boundaries make extraction a deployment change, not a redesign.
 - **The database is the bottleneck, not the app.** We design for **sharding by `shop_id`** and read replicas from the start, even while running a single Postgres instance locally.
 - **Requests stay thin.** Anything that can be deferred (email, webhooks, indexing, fulfillment side effects) goes through the **transactional outbox → background job engine**. HTTP threads do the minimum and return.
 - **Boundaries are enforced by the build,** not by good intentions: Maven module visibility + Spring Modulith verification + ArchUnit tests fail CI when a boundary is crossed.
@@ -22,13 +22,13 @@ One deployable artifact, hard internal boundaries, and a data layer designed to 
 
 These five principles are not slogans — each one maps to a concrete, enforced practice in this repo.
 
-| Principle | What it means here | How it's enforced |
-|---|---|---|
-| **Monolith First** | One deployable. No network hop, no service mesh, no distributed transaction until proven necessary. | A single `app/` bootstrap module assembles everything. No module ships its own deployable. |
-| **Modular Design** | Bounded contexts with explicit `api`/`spi`/`impl` separation. Cross-module calls go through published interfaces or events only. | Maven module graph + Spring Modulith `verify()` + ArchUnit rules in CI. |
-| **Scale Data First** | Shard key (`shop_id`) is baked into every aggregate from the first migration. No cross-shard joins on the transactional path. | Sharding-aware datasource routing in `platform-persistence`; lint check for `shop_id` on tenant tables. |
-| **Async Processing** | Side effects are events, not inline calls. Requests commit their own state + an outbox row, then return. | Transactional outbox in `platform-events`; `job-engine` drains it. Synchronous fan-out only via structured concurrency where latency demands it. |
-| **Incremental Extraction** | We never build a service speculatively. A module is extracted only when it hits an extraction trigger (see §16). | Extraction checklist gated on real metrics, not architecture taste. |
+| Principle                  | What it means here                                                                                                               | How it's enforced                                                                                                                                |
+| -------------------------- | -------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------ |
+| **Monolith First**         | One deployable. No network hop, no service mesh, no distributed transaction until proven necessary.                              | A single `app/` bootstrap module assembles everything. No module ships its own deployable.                                                       |
+| **Modular Design**         | Bounded contexts with explicit `api`/`spi`/`impl` separation. Cross-module calls go through published interfaces or events only. | Maven module graph + Spring Modulith `verify()` + ArchUnit rules in CI.                                                                          |
+| **Scale Data First**       | Shard key (`shop_id`) is baked into every aggregate from the first migration. No cross-shard joins on the transactional path.    | Sharding-aware datasource routing in `platform-persistence`; lint check for `shop_id` on tenant tables.                                          |
+| **Async Processing**       | Side effects are events, not inline calls. Requests commit their own state + an outbox row, then return.                         | Transactional outbox in `platform-events`; `job-engine` drains it. Synchronous fan-out only via structured concurrency where latency demands it. |
+| **Incremental Extraction** | We never build a service speculatively. A module is extracted only when it hits an extraction trigger (see §16).                 | Extraction checklist gated on real metrics, not architecture taste.                                                                              |
 
 ---
 
@@ -71,27 +71,28 @@ These five principles are not slogans — each one maps to a concrete, enforced 
 
 ## 4. Technology Stack
 
-| Concern | Choice | Why |
-|---|---|---|
-| Language | **Java 25 (LTS)** | Virtual threads, records, sealed types, pattern matching, **scoped values** for context propagation. |
-| Framework | **Spring Boot 4.x** (Spring Framework 7) | First-class Java 25 support; fully modularized starter jars align with our module-per-context model. |
-| Modularity | **Spring Modulith** | Runtime boundary verification, module events, documentation generation, externalization hooks for future extraction. |
-| Build | **Maven (multi-module reactor)** | Compile-time boundary enforcement via the module graph + an internal BOM. |
-| Persistence | **PostgreSQL** + **MyBatis (MyBatis-Spring)** | Explicit, reviewable SQL and full control over shard-aware queries — no ORM lazy-loading or hidden N+1 surprises. JPA is intentionally **not** used. |
-| Mapping | **ModelMapper** | DTO ↔ domain mapping, kept out of controllers and persistence. |
-| Validation & i18n | **Jakarta Bean Validation + Spring `MessageSource`** | Inputs validated at the edge; all error/exception text resolved through i18n message resolvers. |
-| Errors | **Centralized `@RestControllerAdvice` → `ProblemDetail`** | One exception handler; responses never carry raw error codes. |
-| Migrations | **Flyway/Liquibase, run from infra** | Versioned, per-module scripts, **executed by a migration container — never by a Spring service**. |
-| Scaffolding | **Spring Boot CLI `spring init` (via SDKMAN)** | Every module/service generated from the CLI; no hand-rolled skeletons. |
-| Cache / Cart / Queue | **Redis** | Hot reads, cart state, rate limiting, and the initial job queue (graduates to Kafka on extraction). |
-| Async / Events | **Outbox + Spring Modulith events** → `job-engine` | Reliable, in-process now; externalizable later without changing publishers. |
-| Search | **OpenSearch / Postgres FTS (Phase 6)** | Start with Postgres FTS, graduate to OpenSearch when catalog/order volume demands. |
-| Observability | **Micrometer + OpenTelemetry + structured JSON logs** | Per-module metrics and traces; module name is a first-class tag. |
-| Tests | **JUnit 5, Testcontainers, ArchUnit, Spring Modulith test** | Module-slice tests + boundary tests + integration against real Postgres/Redis. |
-| API docs | **OpenAPI 3.1 (springdoc) + generated typed client** | Contract is generated from the deployed app and **frozen before any frontend work**. |
-| Frontend | **Vue 3 (`<script setup>`, TS) + Vite + Pinia + Vue Router + Vue I18n** | Buyer storefront + merchant admin; built **last**, against the frozen contract. Nuxt 3 recommended for the SSR/SEO storefront. |
+| Concern              | Choice                                                                  | Why                                                                                                                                                  |
+| -------------------- | ----------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Language             | **Java 25 (LTS)**                                                       | Virtual threads, records, sealed types, pattern matching, **scoped values** for context propagation.                                                 |
+| Framework            | **Spring Boot 4.x** (Spring Framework 7)                                | First-class Java 25 support; fully modularized starter jars align with our module-per-context model.                                                 |
+| Modularity           | **Spring Modulith**                                                     | Runtime boundary verification, module events, documentation generation, externalization hooks for future extraction.                                 |
+| Build                | **Maven (multi-module reactor)**                                        | Compile-time boundary enforcement via the module graph + an internal BOM.                                                                            |
+| Persistence          | **PostgreSQL** + **MyBatis (MyBatis-Spring)**                           | Explicit, reviewable SQL and full control over shard-aware queries — no ORM lazy-loading or hidden N+1 surprises. JPA is intentionally **not** used. |
+| Mapping              | **ModelMapper**                                                         | DTO ↔ domain mapping, kept out of controllers and persistence.                                                                                       |
+| Validation & i18n    | **Jakarta Bean Validation + Spring `MessageSource`**                    | Inputs validated at the edge; all error/exception text resolved through i18n message resolvers.                                                      |
+| Errors               | **Centralized `@RestControllerAdvice` → `ProblemDetail`**               | One exception handler; responses never carry raw error codes.                                                                                        |
+| Migrations           | **Flyway/Liquibase, run from infra**                                    | Versioned, per-module scripts, **executed by a migration container — never by a Spring service**.                                                    |
+| Scaffolding          | **Spring Boot CLI `spring init` (via SDKMAN)**                          | Every module/service generated from the CLI; no hand-rolled skeletons.                                                                               |
+| Cache / Cart / Queue | **Redis**                                                               | Hot reads, cart state, rate limiting, and the initial job queue (graduates to Kafka on extraction).                                                  |
+| Async / Events       | **Outbox + Spring Modulith events** → `job-engine`                      | Reliable, in-process now; externalizable later without changing publishers.                                                                          |
+| Search               | **OpenSearch / Postgres FTS (Phase 6)**                                 | Start with Postgres FTS, graduate to OpenSearch when catalog/order volume demands.                                                                   |
+| Observability        | **Micrometer + OpenTelemetry + structured JSON logs**                   | Per-module metrics and traces; module name is a first-class tag.                                                                                     |
+| Tests                | **JUnit 5, Testcontainers, ArchUnit, Spring Modulith test**             | Module-slice tests + boundary tests + integration against real Postgres/Redis.                                                                       |
+| API docs             | **OpenAPI 3.1 (springdoc) + generated typed client**                    | Contract is generated from the deployed app and **frozen before any frontend work**.                                                                 |
+| Frontend             | **Vue 3 (`<script setup>`, TS) + Vite + Pinia + Vue Router + Vue I18n** | Buyer storefront + merchant admin; built **last**, against the frozen contract. Nuxt 3 recommended for the SSR/SEO storefront.                       |
 
 ### Why virtual threads matter here
+
 With `spring.threads.virtual.enabled=true`, blocking JDBC/Redis calls no longer pin platform threads. We get high request concurrency with **plain, readable blocking code** — no reactive complexity unless a specific path needs it. Request-scoped context (tenant, principal, request id) is propagated with **scoped values**, not `ThreadLocal`, which is the correct primitive under virtual threads.
 
 ---
@@ -169,6 +170,7 @@ catalog-impl/           (internal — sealed off; nothing outside compiles again
 ```
 
 Rules:
+
 - The module itself was generated with **`spring init`** — the skeleton is never hand-rolled.
 - The `internal` package is the module's private world. **Spring Modulith forbids** other modules from referencing it.
 - The implementation of an `api` port is a Spring bean. Other modules **inject the interface**, never the concrete class.
@@ -189,7 +191,7 @@ Inject `B`'s `*-api` interface. Use this when A needs an immediate answer (e.g. 
 Publish an event from A; B subscribes. Use this for side effects that must not block or fail the request (e.g. `OrderPlaced` → notifications, search indexing, analytics). Events go through the **transactional outbox**: they commit in the same DB transaction as the state change, then the `job-engine` delivers them. This gives at-least-once delivery; **all handlers must be idempotent**.
 
 > **Decision rule:** if B's failure should roll back A's work → synchronous API call.
-> If B's failure should *not* fail A → event. When in doubt, prefer the event and design for idempotency.
+> If B's failure should _not_ fail A → event. When in doubt, prefer the event and design for idempotency.
 
 ---
 
@@ -198,20 +200,24 @@ Publish an event from A; B subscribes. Use this for side effects that must not b
 The database is the scaling ceiling, so it gets designed first — even though local dev runs a single Postgres.
 
 **Sharding.**
+
 - Shard key is **`shop_id`** on every tenant-scoped table. A shop's entire dataset lives on one shard.
 - `platform-persistence` resolves the active shard from `TenantContext` and routes the connection. Application code never picks a datasource.
 - **No foreign keys or joins across shards.** Cross-shop/platform reads happen off the transactional path (replicas + async projections).
 - Local/dev: one Postgres, `shard-count=1`. Staging/prod: N shards behind the same routing layer. The code path is identical.
 
 **Read/write split.**
+
 - Writes go to the shard primary. Read-heavy, non-read-your-writes paths (storefront catalog browse, reports) target **read replicas**.
 - A request is read-only by default; only command handlers open write transactions.
 
 **Caching.**
+
 - Redis caches hot, slowly-changing reads (published products, shop settings, shipping zones) with explicit TTLs and event-driven invalidation (`ProductPublished` evicts the product cache key).
 - **Cache is never the source of truth.** A cold cache must always be correct, just slower.
 
 **Migrations.**
+
 - Each module owns its migration scripts under `db/migration/<module>`; no module edits another's schema.
 - Scripts are **applied from the infrastructure layer — a dedicated migration container/job — never by the Spring app at startup.** The app assumes the schema already exists.
 - Every tenant table includes `shop_id` (NOT NULL) and is indexed on it. CI lints for this.
@@ -259,11 +265,13 @@ Three layers, all in CI. A boundary violation **fails the build**.
 ## 12. Build & Run
 
 **Prerequisites**
+
 - **SDKMAN** → JDK 25 (Temurin/Liberica) + **Spring Boot CLI** (`spring init`, for scaffolding new modules)
 - Maven 3.9+
 - Docker (Testcontainers + official Postgres/Redis images)
 
 **Common commands**
+
 ```bash
 # Full reactor build + boundary checks + tests
 ./mvnw clean verify
@@ -299,13 +307,13 @@ Three layers, all in CI. A boundary violation **fails the build**.
 
 ## 14. Testing Strategy
 
-| Layer | Tool | Scope |
-|---|---|---|
-| Unit | JUnit 5 | domain invariants, pure logic, no Spring |
+| Layer        | Tool                                     | Scope                                                                   |
+| ------------ | ---------------------------------------- | ----------------------------------------------------------------------- |
+| Unit         | JUnit 5                                  | domain invariants, pure logic, no Spring                                |
 | Module slice | Spring Modulith `@ApplicationModuleTest` | one module bootstrapped in isolation; collaborators stubbed via `*-api` |
-| Integration | Testcontainers (PG + Redis) | persistence, sharding routing, outbox delivery |
-| Boundary | Spring Modulith `verify()` + ArchUnit | no illegal cross-module access, no cycles |
-| Contract | event/DTO schema tests | `*-api` changes are caught before consumers break |
+| Integration  | Testcontainers (PG + Redis)              | persistence, sharding routing, outbox delivery                          |
+| Boundary     | Spring Modulith `verify()` + ArchUnit    | no illegal cross-module access, no cycles                               |
+| Contract     | event/DTO schema tests                   | `*-api` changes are caught before consumers break                       |
 
 **Rule:** a module's tests must pass with **only that module + platform** on the classpath. If a test needs another module's `impl`, the boundary is wrong.
 
@@ -313,22 +321,22 @@ Three layers, all in CI. A boundary violation **fails the build**.
 
 ## 15. Module Catalog
 
-| Module | Bounded context | Owns (aggregate roots) | Key published events |
-|---|---|---|---|
-| `identity` | Auth & staff accounts | StaffUser, Session, ApiToken, Role | `StaffInvited`, `SessionRevoked` |
-| `store` | Shop / tenant | Shop, Domain, Settings, Plan, Locale | `ShopCreated`, `PlanChanged` |
-| `catalog` | Products | Product, Variant, Collection, Option | `ProductPublished`, `VariantUpdated` |
-| `inventory` | Stock | Location, StockLevel, Reservation | `StockAdjusted`, `ReservationExpired` |
-| `pricing` | Money & promotions | PriceList, Discount, Promotion | `DiscountApplied`, `PriceChanged` |
-| `cart` | Buyer cart | Cart, LineItem (transient, Redis-backed) | `CartCheckedOut` |
-| `checkout` | Checkout flow | CheckoutSession, totals calc | `CheckoutCompleted` |
-| `orders` | Order lifecycle | Order, OrderLine, TransactionLedger, Return | `OrderPlaced`, `OrderCancelled`, `OrderRefunded` |
-| `payments` | Payments | PaymentIntent, Refund, GatewayAdapter (SPI) | `PaymentCaptured`, `PaymentFailed` |
-| `customers` | Buyers | Customer, Address, Segment, Consent | `CustomerRegistered`, `AddressChanged` |
-| `shipping` | Delivery | ShippingZone, Rate, Carrier, Fulfillment | `FulfillmentCreated`, `Shipped` |
-| `tax` | Tax | TaxRate, Exemption, calculation | `TaxCalculated` |
-| `notifications` | Comms | Template, WebhookSubscription, DeliveryLog | `NotificationSent`, `WebhookDelivered` |
-| `search` | Discovery | ProductIndex, OrderIndex (projections) | — (consumer of others' events) |
+| Module          | Bounded context       | Owns (aggregate roots)                      | Key published events                             |
+| --------------- | --------------------- | ------------------------------------------- | ------------------------------------------------ |
+| `identity`      | Auth & staff accounts | StaffUser, Session, ApiToken, Role          | `StaffInvited`, `SessionRevoked`                 |
+| `store`         | Shop / tenant         | Shop, Domain, Settings, Plan, Locale        | `ShopCreated`, `PlanChanged`                     |
+| `catalog`       | Products              | Product, Variant, Collection, Option        | `ProductPublished`, `VariantUpdated`             |
+| `inventory`     | Stock                 | Location, StockLevel, Reservation           | `StockAdjusted`, `ReservationExpired`            |
+| `pricing`       | Money & promotions    | PriceList, Discount, Promotion              | `DiscountApplied`, `PriceChanged`                |
+| `cart`          | Buyer cart            | Cart, LineItem (transient, Redis-backed)    | `CartCheckedOut`                                 |
+| `checkout`      | Checkout flow         | CheckoutSession, totals calc                | `CheckoutCompleted`                              |
+| `orders`        | Order lifecycle       | Order, OrderLine, TransactionLedger, Return | `OrderPlaced`, `OrderCancelled`, `OrderRefunded` |
+| `payments`      | Payments              | PaymentIntent, Refund, GatewayAdapter (SPI) | `PaymentCaptured`, `PaymentFailed`               |
+| `customers`     | Buyers                | Customer, Address, Segment, Consent         | `CustomerRegistered`, `AddressChanged`           |
+| `shipping`      | Delivery              | ShippingZone, Rate, Carrier, Fulfillment    | `FulfillmentCreated`, `Shipped`                  |
+| `tax`           | Tax                   | TaxRate, Exemption, calculation             | `TaxCalculated`                                  |
+| `notifications` | Comms                 | Template, WebhookSubscription, DeliveryLog  | `NotificationSent`, `WebhookDelivered`           |
+| `search`        | Discovery             | ProductIndex, OrderIndex (projections)      | — (consumer of others' events)                   |
 
 `payments` intentionally exposes an **SPI** (`payments-spi`) so gateway adapters (Stripe-like, local VN gateways) plug in without `payments-impl` depending on them.
 
@@ -339,11 +347,13 @@ Three layers, all in CI. A boundary violation **fails the build**.
 A module becomes a separate service **only** when it hits a real trigger — never on architectural taste.
 
 **Triggers (any one):**
+
 - It needs to scale independently (e.g. `search` is CPU-bound and dwarfs everything else).
 - It needs an independent release cadence or a dedicated team.
 - Its data genuinely wants a different store/locality than the shard.
 
 **Why extraction is cheap here:**
+
 - Consumers already depend only on `*-api`, never on internals.
 - Communication is already events or interface calls — swap the in-process publisher for an externalized one (Spring Modulith externalization → Kafka) and the in-process bean call for an HTTP/gRPC client behind the same `*-api` interface.
 - The module already owns its schema and migrations.
@@ -356,13 +366,13 @@ A module becomes a separate service **only** when it hits a real trigger — nev
 
 The pitfalls below are turned into rules the build (or review) enforces.
 
-| Pitfall | Our rule |
-|---|---|
-| Starting with microservices too early | One deployable until a §16 extraction trigger fires. PRs that add a second deployable are rejected. |
-| Lack of domain boundaries | Every context is an `api`/`impl` module pair, verified by Modulith + ArchUnit. |
-| Heavy synchronous processing | Side effects are events through the outbox. Sync cross-module calls need a "must roll back together" justification. |
-| No caching strategy | Hot reads are cached with explicit TTL + event-driven invalidation. Cache is never source of truth. |
-| Tight coupling between modules | Managed by the **reactor pom + internal BOM**: `*-impl` cannot declare another `*-impl` as a dependency. Shared code lives in `platform-*`, never copied between modules. |
+| Pitfall                               | Our rule                                                                                                                                                                  |
+| ------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Starting with microservices too early | One deployable until a §16 extraction trigger fires. PRs that add a second deployable are rejected.                                                                       |
+| Lack of domain boundaries             | Every context is an `api`/`impl` module pair, verified by Modulith + ArchUnit.                                                                                            |
+| Heavy synchronous processing          | Side effects are events through the outbox. Sync cross-module calls need a "must roll back together" justification.                                                       |
+| No caching strategy                   | Hot reads are cached with explicit TTL + event-driven invalidation. Cache is never source of truth.                                                                       |
+| Tight coupling between modules        | Managed by the **reactor pom + internal BOM**: `*-impl` cannot declare another `*-impl` as a dependency. Shared code lives in `platform-*`, never copied between modules. |
 
 ---
 
@@ -385,8 +395,8 @@ The frontend is built **last**, and the order is deliberate and strict:
 Backend (Phases 0–8)  →  Infra + DevOps + Deploy (Phase 9)  →  API Docs frozen (Phase 10)  →  Vue 3 frontend (Phase 11)
 ```
 
-- **No frontend code is written until the backend is fully developed, deployed, and stable.** The UI builds against a *running* system, not a moving target.
-- **The contract is frozen before the UI starts.** Phase 10 generates an **OpenAPI 3.1** spec from the deployed app (Storefront + Admin surfaces), documents auth / errors (`ProblemDetail`) / pagination / rate-limits / idempotency / webhooks, and produces a **generated typed client**. The frontend consumes *only* this frozen v1 contract — never undocumented endpoints, never backend internals.
+- **No frontend code is written until the backend is fully developed, deployed, and stable.** The UI builds against a _running_ system, not a moving target.
+- **The contract is frozen before the UI starts.** Phase 10 generates an **OpenAPI 3.1** spec from the deployed app (Storefront + Admin surfaces), documents auth / errors (`ProblemDetail`) / pagination / rate-limits / idempotency / webhooks, and produces a **generated typed client**. The frontend consumes _only_ this frozen v1 contract — never undocumented endpoints, never backend internals.
 - **Two Vue 3 apps:**
   - **Storefront (buyer)** — browse → cart → checkout. Read-heavy, replica/cache-backed, SEO-sensitive → **Nuxt 3** is the recommended host for this surface.
   - **Admin (merchant)** — catalog, inventory, orders, settings. RBAC-gated SPA.
@@ -410,4 +420,4 @@ These exist to keep the codebase boring and uniform — the opposite of "coding 
 
 ---
 
-*This README describes the target shape. Implementation proceeds phase by phase per [`ROADMAP.md`](./ROADMAP.md). When reality and this document disagree, fix the code or update this document in the same PR — never let them drift.*
+_This README describes the target shape. Implementation proceeds phase by phase per [`ROADMAP.md`](./ROADMAP.md). When reality and this document disagree, fix the code or update this document in the same PR — never let them drift._

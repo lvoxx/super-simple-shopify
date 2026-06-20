@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+		"https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.shop.identity.internal.StaffUserMapper">
+
+	<resultMap id="staffUser" type="com.shop.identity.internal.StaffUserRow">
+		<id property="subject" column="subject"/>
+		<result property="shopId" column="shop_id"/>
+		<result property="displayName" column="display_name"/>
+		<result property="email" column="email"/>
+		<result property="status" column="status"/>
+		<result property="createdAt" column="created_at"/>
+		<result property="updatedAt" column="updated_at"/>
+		<collection property="roles" ofType="java.lang.String">
+			<result column="role"/>
+		</collection>
+	</resultMap>
+
+	<insert id="insert" parameterType="com.shop.identity.internal.StaffUserRow">
+		INSERT INTO staff_user (shop_id, subject, display_name, email, status, created_at, updated_at)
+		VALUES (#{shopId}, #{subject}, #{displayName}, #{email}, #{status}, #{createdAt}, #{updatedAt})
+	</insert>
+
+	<insert id="insertRole">
+		INSERT INTO staff_user_role (shop_id, subject, role)
+		VALUES (#{shopId}, #{subject}, #{role})
+	</insert>
+
+	<!-- INNER JOIN is safe: a staff user is always created with at least one role. -->
+	<select id="findBySubject" resultMap="staffUser">
+		SELECT u.shop_id, u.subject, u.display_name, u.email, u.status, u.created_at, u.updated_at, r.role
+		FROM staff_user u
+		JOIN staff_user_role r ON r.shop_id = u.shop_id AND r.subject = u.subject
+		WHERE u.shop_id = #{shopId} AND u.subject = #{subject}
+	</select>
+
+</mapper>

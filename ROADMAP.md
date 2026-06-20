@@ -143,7 +143,7 @@ _Goal: the skeleton that makes every later phase safe. No business features yet.
 _Goal: shops exist, staff can authenticate, every request is tenant-scoped._
 
 - [x] `store`: Shop aggregate, domains, plan, locale; `ShopCreated` event. _(Deliverable 1; richer settings to follow.)_
-- [ ] `identity`: StaffUser, Session, ApiToken, Role/RBAC; login + token issuance. _(Deliverable 2 — token validation delegated to Keycloak at the gateway; modules are not resource servers.)_
+- [~] `identity`: StaffUser + Role/RBAC model, `IdentityFacade`, `StaffInvited` (tenant-sharded). _(Deliverable 2, slice 1 landed. Session/ApiToken/login/token-issuance are intentionally omitted — auth is delegated to Keycloak at the gateway; modules are not resource servers. See ADR 0004.)_
 - [ ] Tenant resolution: host/domain → shop for storefront; auth → shop for admin. _(Deliverable 2; `StoreFacade.findByDomain` + `shop_domain` map already in place.)_
 - [x] Shard assignment on shop creation (shop → shard mapping table on a control plane). _(See ADR 0003.)_
 - [ ] Admin auth wired through `platform-security`; `TenantContext` populated per request.

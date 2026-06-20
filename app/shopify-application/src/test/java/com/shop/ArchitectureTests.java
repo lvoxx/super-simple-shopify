@@ -37,4 +37,14 @@ class ArchitectureTests {
 						"com.shop.store.internal..");
 		rule.check(classes);
 	}
+
+	@Test
+	void identityApiStaysPersistenceFree() {
+		ArchRule rule = noClasses()
+				.that().resideInAPackage("com.shop.identity")
+				.should().dependOnClassesThat()
+				.resideInAnyPackage("org.apache.ibatis..", "com.shop.platform.persistence..",
+						"com.shop.identity.internal..");
+		rule.check(classes);
+	}
 }
