@@ -27,6 +27,7 @@
 			<!-- Domain modules (Phase 1+): the app assembles every *-impl -->
 			<dependency><groupId>com.shop</groupId><artifactId>store-impl</artifactId></dependency>
 			<dependency><groupId>com.shop</groupId><artifactId>identity-impl</artifactId></dependency>
+			<dependency><groupId>com.shop</groupId><artifactId>catalog-impl</artifactId></dependency>
 			<!-- store-api is used directly by WebFilterConfig (storefront host->shop resolver). -->
 			<dependency><groupId>com.shop</groupId><artifactId>store-api</artifactId></dependency>
 
