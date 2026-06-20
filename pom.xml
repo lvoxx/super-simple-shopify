@@ -57,6 +57,8 @@
 		<module>jobs/job-engine</module>
 		<module>modules/store/store-api</module>
 		<module>modules/store/store-impl</module>
+		<module>modules/identity/identity-api</module>
+		<module>modules/identity/identity-impl</module>
 		<module>app/shopify-application</module>
 	</modules>
 
