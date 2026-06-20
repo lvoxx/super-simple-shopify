@@ -13,13 +13,13 @@ name: OSV-Scanner
 
 on:
   pull_request:
-    branches: [ $default-branch, $protected-branches ]
+    branches: [main]
   merge_group:
-    branches: [ $default-branch, $protected-branches ]
+    branches: [main]
   schedule:
-    - cron: $cron-weekly
+    - cron: '0 0 * * 0'
   push:
-    branches: [ $default-branch, $protected-branches ]
+    branches: [main]
 
 permissions:
   # Require writing security events to upload SARIF file to security tab
