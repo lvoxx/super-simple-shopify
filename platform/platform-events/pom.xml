@@ -18,6 +18,10 @@
 			<artifactId>platform-core</artifactId>
 		</dependency>
 		<dependency>
+			<groupId>com.shop</groupId>
+			<artifactId>platform-persistence</artifactId>
+		</dependency>
+		<dependency>
 			<groupId>org.mybatis.spring.boot</groupId>
 			<artifactId>mybatis-spring-boot-starter</artifactId>
 		</dependency>

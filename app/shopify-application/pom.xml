@@ -24,6 +24,9 @@
 		<dependency><groupId>com.shop</groupId><artifactId>platform-web</artifactId></dependency>
 		<dependency><groupId>com.shop</groupId><artifactId>job-engine</artifactId></dependency>
 
+			<!-- Domain modules (Phase 1+): the app assembles every *-impl -->
+			<dependency><groupId>com.shop</groupId><artifactId>store-impl</artifactId></dependency>
+
 		<!-- Runtime -->
 		<dependency>
 			<groupId>org.springframework.boot</groupId>

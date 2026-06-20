@@ -55,6 +55,8 @@
 		<module>platform/platform-web</module>
 		<module>platform/platform-test</module>
 		<module>jobs/job-engine</module>
+		<module>modules/store/store-api</module>
+		<module>modules/store/store-impl</module>
 		<module>app/shopify-application</module>
 	</modules>
 

@@ -142,10 +142,10 @@ _Goal: the skeleton that makes every later phase safe. No business features yet.
 
 _Goal: shops exist, staff can authenticate, every request is tenant-scoped._
 
-- [ ] `store`: Shop aggregate, settings, domains, plan, locale; `ShopCreated` event.
-- [ ] `identity`: StaffUser, Session, ApiToken, Role/RBAC; login + token issuance.
-- [ ] Tenant resolution: host/domain → shop for storefront; auth → shop for admin.
-- [ ] Shard assignment on shop creation (shop → shard mapping table on a control plane).
+- [x] `store`: Shop aggregate, domains, plan, locale; `ShopCreated` event. _(Deliverable 1; richer settings to follow.)_
+- [ ] `identity`: StaffUser, Session, ApiToken, Role/RBAC; login + token issuance. _(Deliverable 2 — token validation delegated to Keycloak at the gateway; modules are not resource servers.)_
+- [ ] Tenant resolution: host/domain → shop for storefront; auth → shop for admin. _(Deliverable 2; `StoreFacade.findByDomain` + `shop_domain` map already in place.)_
+- [x] Shard assignment on shop creation (shop → shard mapping table on a control plane). _(See ADR 0003.)_
 - [ ] Admin auth wired through `platform-security`; `TenantContext` populated per request.
 
 **Phase 1 DoD:** can create a shop, authenticate a staff user, and every downstream call has a guaranteed `shop_id` routed to the correct shard.

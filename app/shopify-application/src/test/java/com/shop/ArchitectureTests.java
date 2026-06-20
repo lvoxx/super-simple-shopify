@@ -27,4 +27,14 @@ class ArchitectureTests {
 				.resideInAnyPackage("org.springframework..", "org.apache.ibatis..", "jakarta.servlet..");
 		rule.check(classes);
 	}
+
+	@Test
+	void storeApiStaysPersistenceFree() {
+		ArchRule rule = noClasses()
+				.that().resideInAPackage("com.shop.store")
+				.should().dependOnClassesThat()
+				.resideInAnyPackage("org.apache.ibatis..", "com.shop.platform.persistence..",
+						"com.shop.store.internal..");
+		rule.check(classes);
+	}
 }

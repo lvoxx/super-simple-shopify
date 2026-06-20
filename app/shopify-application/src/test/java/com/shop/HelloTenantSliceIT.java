@@ -51,7 +51,8 @@ class HelloTenantSliceIT {
 				.build();
 		Flyway.configure()
 				.dataSource(raw)
-				.locations("filesystem:../../db/migration/platform", "filesystem:../../db/migration/hello")
+				.locations("filesystem:../../db/migration/platform", "filesystem:../../db/migration/hello",
+						"filesystem:../../db/migration/control")
 				.load()
 				.migrate();
 	}
