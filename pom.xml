@@ -61,6 +61,8 @@
 		<module>modules/identity/identity-impl</module>
 		<module>modules/catalog/catalog-api</module>
 		<module>modules/catalog/catalog-impl</module>
+		<module>modules/inventory/inventory-api</module>
+		<module>modules/inventory/inventory-impl</module>
 		<module>app/shopify-application</module>
 	</modules>
 

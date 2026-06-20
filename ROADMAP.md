@@ -157,7 +157,7 @@ _Goal: shops exist, staff can authenticate, every request is tenant-scoped._
 _Goal: merchants can model what they sell and how much is in stock._
 
 - [x] `catalog`: Product + Variant aggregate; create/get; publish/unpublish; `ProductPublished`/`VariantUpdated` (tenant-sharded, via the tenant outbox). _(Deliverable 1; Option + Collection to follow.)_
-- [ ] `inventory`: Location, StockLevel, Reservation; adjustments; `StockAdjusted`/`ReservationExpired`.
+- [x] `inventory`: Location, StockLevel, Reservation; adjust/reserve/release/expire; `StockAdjusted`/`ReservationExpired` (tenant-sharded, via the tenant outbox; available never < 0). _(Deliverable 1; scheduled expiry-sweep job wiring lands with checkout in Phase 4.)_
 - [ ] Catalog read cache (published products) with TTL + invalidation on `ProductPublished`.
 - [ ] `catalog` ↔ `inventory` integration via events only (catalog doesn't write stock).
 

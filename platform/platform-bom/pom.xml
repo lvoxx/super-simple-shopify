@@ -65,6 +65,8 @@
 				<dependency><groupId>com.shop</groupId><artifactId>identity-impl</artifactId><version>${project.version}</version></dependency>
 				<dependency><groupId>com.shop</groupId><artifactId>catalog-api</artifactId><version>${project.version}</version></dependency>
 				<dependency><groupId>com.shop</groupId><artifactId>catalog-impl</artifactId><version>${project.version}</version></dependency>
+				<dependency><groupId>com.shop</groupId><artifactId>inventory-api</artifactId><version>${project.version}</version></dependency>
+				<dependency><groupId>com.shop</groupId><artifactId>inventory-impl</artifactId><version>${project.version}</version></dependency>
 		</dependencies>
 	</dependencyManagement>
 </project>
