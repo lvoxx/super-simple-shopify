@@ -1,0 +1,91 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+		"https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.shop.inventory.internal.InventoryMapper">
+
+	<resultMap id="location" type="com.shop.inventory.internal.LocationRow">
+		<id property="id" column="id"/>
+		<result property="shopId" column="shop_id"/>
+		<result property="name" column="name"/>
+		<result property="createdAt" column="created_at"/>
+		<result property="updatedAt" column="updated_at"/>
+	</resultMap>
+
+	<resultMap id="stockLevel" type="com.shop.inventory.internal.StockLevelRow">
+		<result property="shopId" column="shop_id"/>
+		<result property="variantId" column="variant_id"/>
+		<result property="locationId" column="location_id"/>
+		<result property="available" column="available"/>
+		<result property="reserved" column="reserved"/>
+		<result property="updatedAt" column="updated_at"/>
+	</resultMap>
+
+	<resultMap id="reservation" type="com.shop.inventory.internal.ReservationRow">
+		<id property="id" column="id"/>
+		<result property="shopId" column="shop_id"/>
+		<result property="variantId" column="variant_id"/>
+		<result property="locationId" column="location_id"/>
+		<result property="quantity" column="quantity"/>
+		<result property="status" column="status"/>
+		<result property="expiresAt" column="expires_at"/>
+		<result property="createdAt" column="created_at"/>
+		<result property="updatedAt" column="updated_at"/>
+	</resultMap>
+
+	<insert id="insertLocation" parameterType="com.shop.inventory.internal.LocationRow"
+			useGeneratedKeys="true" keyProperty="id" keyColumn="id">
+		INSERT INTO stock_location (shop_id, name, created_at, updated_at)
+		VALUES (#{shopId}, #{name}, #{createdAt}, #{updatedAt})
+	</insert>
+
+	<select id="findLocation" resultMap="location">
+		SELECT id, shop_id, name, created_at, updated_at
+		FROM stock_location
+		WHERE shop_id = #{shopId} AND id = #{id}
+	</select>
+
+	<select id="findStock" resultMap="stockLevel">
+		SELECT shop_id, variant_id, location_id, available, reserved, updated_at
+		FROM stock_level
+		WHERE shop_id = #{shopId} AND variant_id = #{variantId} AND location_id = #{locationId}
+	</select>
+
+	<insert id="insertStock" parameterType="com.shop.inventory.internal.StockLevelRow">
+		INSERT INTO stock_level (shop_id, variant_id, location_id, available, reserved, updated_at)
+		VALUES (#{shopId}, #{variantId}, #{locationId}, #{available}, #{reserved}, #{updatedAt})
+	</insert>
+
+	<update id="updateStockQuantities">
+		UPDATE stock_level
+		SET available = #{available}, reserved = #{reserved}, updated_at = #{updatedAt}
+		WHERE shop_id = #{shopId} AND variant_id = #{variantId} AND location_id = #{locationId}
+	</update>
+
+	<insert id="insertReservation" parameterType="com.shop.inventory.internal.ReservationRow"
+			useGeneratedKeys="true" keyProperty="id" keyColumn="id">
+		INSERT INTO stock_reservation (shop_id, variant_id, location_id, quantity, status, expires_at,
+				created_at, updated_at)
+		VALUES (#{shopId}, #{variantId}, #{locationId}, #{quantity}, #{status}, #{expiresAt},
+				#{createdAt}, #{updatedAt})
+	</insert>
+
+	<select id="findReservation" resultMap="reservation">
+		SELECT id, shop_id, variant_id, location_id, quantity, status, expires_at, created_at, updated_at
+		FROM stock_reservation
+		WHERE shop_id = #{shopId} AND id = #{id}
+	</select>
+
+	<update id="updateReservationStatus">
+		UPDATE stock_reservation
+		SET status = #{status}, updated_at = #{updatedAt}
+		WHERE shop_id = #{shopId} AND id = #{id}
+	</update>
+
+	<select id="findDueReservations" resultMap="reservation">
+		SELECT id, shop_id, variant_id, location_id, quantity, status, expires_at, created_at, updated_at
+		FROM stock_reservation
+		WHERE shop_id = #{shopId} AND status = 'HELD' AND expires_at &lt;= #{now}
+		ORDER BY expires_at, id
+	</select>
+
+</mapper>
