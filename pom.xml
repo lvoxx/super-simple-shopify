@@ -59,6 +59,8 @@
 		<module>modules/store/store-impl</module>
 		<module>modules/identity/identity-api</module>
 		<module>modules/identity/identity-impl</module>
+		<module>modules/catalog/catalog-api</module>
+		<module>modules/catalog/catalog-impl</module>
 		<module>app/shopify-application</module>
 	</modules>
 

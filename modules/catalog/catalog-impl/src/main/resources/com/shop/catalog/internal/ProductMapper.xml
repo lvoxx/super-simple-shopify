@@ -1,0 +1,85 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+		"https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.shop.catalog.internal.ProductMapper">
+
+	<!-- mapUnderscoreToCamelCase is on; explicit resultMaps keep the column/property contract obvious. -->
+	<resultMap id="product" type="com.shop.catalog.internal.ProductRow">
+		<id property="id" column="id"/>
+		<result property="shopId" column="shop_id"/>
+		<result property="title" column="title"/>
+		<result property="description" column="description"/>
+		<result property="handle" column="handle"/>
+		<result property="status" column="status"/>
+		<result property="vendor" column="vendor"/>
+		<result property="productType" column="product_type"/>
+		<result property="publishedAt" column="published_at"/>
+		<result property="createdAt" column="created_at"/>
+		<result property="updatedAt" column="updated_at"/>
+	</resultMap>
+
+	<resultMap id="variant" type="com.shop.catalog.internal.VariantRow">
+		<id property="id" column="id"/>
+		<result property="shopId" column="shop_id"/>
+		<result property="productId" column="product_id"/>
+		<result property="sku" column="sku"/>
+		<result property="title" column="title"/>
+		<result property="priceAmount" column="price_amount"/>
+		<result property="priceCurrency" column="price_currency"/>
+		<result property="position" column="position"/>
+		<result property="createdAt" column="created_at"/>
+		<result property="updatedAt" column="updated_at"/>
+	</resultMap>
+
+	<insert id="insertProduct" parameterType="com.shop.catalog.internal.ProductRow"
+			useGeneratedKeys="true" keyProperty="id" keyColumn="id">
+		INSERT INTO product (shop_id, title, description, handle, status, vendor, product_type,
+				published_at, created_at, updated_at)
+		VALUES (#{shopId}, #{title}, #{description}, #{handle}, #{status}, #{vendor}, #{productType},
+				#{publishedAt}, #{createdAt}, #{updatedAt})
+	</insert>
+
+	<insert id="insertVariant" parameterType="com.shop.catalog.internal.VariantRow"
+			useGeneratedKeys="true" keyProperty="id" keyColumn="id">
+		INSERT INTO product_variant (shop_id, product_id, sku, title, price_amount, price_currency,
+				position, created_at, updated_at)
+		VALUES (#{shopId}, #{productId}, #{sku}, #{title}, #{priceAmount}, #{priceCurrency},
+				#{position}, #{createdAt}, #{updatedAt})
+	</insert>
+
+	<select id="findProduct" resultMap="product">
+		SELECT id, shop_id, title, description, handle, status, vendor, product_type,
+				published_at, created_at, updated_at
+		FROM product
+		WHERE shop_id = #{shopId} AND id = #{id}
+	</select>
+
+	<select id="findVariants" resultMap="variant">
+		SELECT id, shop_id, product_id, sku, title, price_amount, price_currency, position,
+				created_at, updated_at
+		FROM product_variant
+		WHERE shop_id = #{shopId} AND product_id = #{productId}
+		ORDER BY position, id
+	</select>
+
+	<select id="findVariant" resultMap="variant">
+		SELECT id, shop_id, product_id, sku, title, price_amount, price_currency, position,
+				created_at, updated_at
+		FROM product_variant
+		WHERE shop_id = #{shopId} AND id = #{id}
+	</select>
+
+	<update id="updateStatus">
+		UPDATE product
+		SET status = #{status}, published_at = #{publishedAt}, updated_at = #{updatedAt}
+		WHERE shop_id = #{shopId} AND id = #{id}
+	</update>
+
+	<update id="updateVariant" parameterType="com.shop.catalog.internal.VariantRow">
+		UPDATE product_variant
+		SET sku = #{sku}, title = #{title}, price_amount = #{priceAmount},
+				price_currency = #{priceCurrency}, updated_at = #{updatedAt}
+		WHERE shop_id = #{shopId} AND id = #{id}
+	</update>
+
+</mapper>
