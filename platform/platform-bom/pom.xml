@@ -50,6 +50,29 @@
 				<artifactId>archunit-junit5</artifactId>
 				<version>${archunit.version}</version>
 			</dependency>
+
+			<!-- Explicit pins so CVE scanners resolve concrete versions instead of "0". -->
+			<dependency>
+				<groupId>org.postgresql</groupId>
+				<artifactId>postgresql</artifactId>
+				<version>${postgresql.version}</version>
+			</dependency>
+			<dependency>
+				<groupId>com.fasterxml.jackson.core</groupId>
+				<artifactId>jackson-databind</artifactId>
+				<version>${jackson-2-bom.version}</version>
+			</dependency>
+			<dependency>
+				<groupId>org.springframework</groupId>
+				<artifactId>spring-web</artifactId>
+				<version>${spring-framework.version}</version>
+			</dependency>
+			<dependency>
+				<groupId>org.springframework</groupId>
+				<artifactId>spring-context</artifactId>
+				<version>${spring-framework.version}</version>
+			</dependency>
+
 			<dependency><groupId>com.shop</groupId><artifactId>platform-core</artifactId><version>${project.version}</version></dependency>
 			<dependency><groupId>com.shop</groupId><artifactId>platform-persistence</artifactId><version>${project.version}</version></dependency>
 			<dependency><groupId>com.shop</groupId><artifactId>platform-events</artifactId><version>${project.version}</version></dependency>
