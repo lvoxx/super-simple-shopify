@@ -21,15 +21,15 @@ import org.springframework.boot.test.web.server.LocalServerPort;
 import org.springframework.context.annotation.Import;
 
 /**
- * Proves the Phase 0 spine end to end against real Postgres + Redis (Testcontainers):
- * resolve tenant (header) -> bind {@code ScopedValue} -> route to shard -> read a tenant row ->
- * publish a domain event to the outbox -> the job-engine drains it to PROCESSED. Tagged
- * {@code integration} so it only runs where Docker is available (CI).
+ * Proves the Phase 1 control-plane spine end to end against real Postgres (Testcontainers): POST to the
+ * non-tenant control surface -> the shop is inserted into the global registry on the control datasource
+ * -> a shard is assigned -> {@code ShopCreated} is written to the control outbox in the same
+ * transaction -> the job-engine drains it to PROCESSED. Tagged {@code integration} (CI/Docker only).
  */
 @Tag("integration")
 @SpringBootTest(webEnvironment = WebEnvironment.RANDOM_PORT)
 @Import(ContainersConfig.class)
-class HelloTenantSliceIT {
+class StoreControlPlaneIT {
 
 	@LocalServerPort
 	int port;
@@ -41,8 +41,7 @@ class HelloTenantSliceIT {
 
 	@BeforeEach
 	void applySchema() {
-		// Schema is applied by Flyway here (as the infra migration container would), never by the
-		// app. A plain datasource is used so migration does not depend on tenant routing.
+		// Schema applied here as the infra migration container would — control + per-shard locations.
 		raw = DataSourceBuilder.create()
 				.url(connection.getJdbcUrl())
 				.username(connection.getUsername())
@@ -51,33 +50,34 @@ class HelloTenantSliceIT {
 				.build();
 		Flyway.configure()
 				.dataSource(raw)
-				.locations("filesystem:../../db/migration/platform", "filesystem:../../db/migration/hello",
-						"filesystem:../../db/migration/control")
+				.locations("filesystem:../../db/migration/platform", "filesystem:../../db/migration/control")
 				.load()
 				.migrate();
 	}
 
 	@Test
-	void resolvesTenantReadsShardEmitsEventAndJobDrainsIt() throws Exception {
+	void createsShopAssignsShardAndEmitsShopCreated() throws Exception {
 		var client = HttpClient.newHttpClient();
-		var request = HttpRequest.newBuilder(URI.create("http://localhost:" + port + "/api/v1/hello"))
-				.header("X-Shop-Id", "1")
-				.GET()
+		String body = "{\"name\":\"Acme\",\"plan\":\"PRO\",\"locale\":\"en-US\",\"primaryDomain\":\"acme.example\"}";
+		var create = HttpRequest.newBuilder(URI.create("http://localhost:" + port + "/api/v1/control/shops"))
+				.header("Content-Type", "application/json")
+				.POST(HttpRequest.BodyPublishers.ofString(body))
 				.build();
 
-		HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString());
+		HttpResponse<String> response = client.send(create, HttpResponse.BodyHandlers.ofString());
 
-		assertThat(response.statusCode()).isEqualTo(200);
-		assertThat(response.body()).contains("Hello from shop 1");
-		awaitOutboxProcessed();
+		assertThat(response.statusCode()).isEqualTo(201);
+		assertThat(response.body()).contains("\"primaryDomain\":\"acme.example\"");
+		assertThat(response.body()).contains("\"shardIndex\":0");
+		awaitControlOutboxProcessed();
 	}
 
-	private void awaitOutboxProcessed() throws Exception {
+	private void awaitControlOutboxProcessed() throws Exception {
 		for (int i = 0; i < 50; i++) {
 			try (var connection = raw.getConnection();
 					var statement = connection.createStatement();
 					var rs = statement.executeQuery(
-							"SELECT count(*) FROM platform_outbox WHERE status = 'PROCESSED'")) {
+							"SELECT count(*) FROM control_outbox WHERE status = 'PROCESSED'")) {
 				rs.next();
 				if (rs.getInt(1) >= 1) {
 					return;
@@ -85,6 +85,6 @@ class HelloTenantSliceIT {
 			}
 			Thread.sleep(200);
 		}
-		throw new AssertionError("Outbox event was never drained to PROCESSED");
+		throw new AssertionError("ShopCreated control-outbox event was never drained to PROCESSED");
 	}
 }

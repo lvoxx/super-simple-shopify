@@ -1,15 +1,18 @@
 package com.shop;
 
 import com.shop.platform.security.TenantBindingFilter;
+import com.shop.platform.web.ApiVersion;
 import com.shop.platform.web.RateLimitFilter;
+import java.util.List;
 import org.springframework.boot.web.servlet.FilterRegistrationBean;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
 /**
- * Registers the cross-cutting servlet filters in order: rate-limit first (cheap reject before
- * any work), then tenant binding (establishes the {@code ScopedValue} every downstream layer
- * relies on). Both are keyed on the shop header in Phase 0.
+ * Registers the cross-cutting servlet filters in order: rate-limit first (cheap reject before any
+ * work), then tenant binding (establishes the {@code ScopedValue} every downstream layer relies on).
+ * The tenant filter skips the control-plane prefix ({@link ApiVersion#CONTROL_PREFIX}), whose endpoints
+ * provision shops before any tenant exists.
  */
 @Configuration
 public class WebFilterConfig {
@@ -24,7 +27,8 @@ public class WebFilterConfig {
 
 	@Bean
 	public FilterRegistrationBean<TenantBindingFilter> tenantBindingFilter() {
-		var registration = new FilterRegistrationBean<>(new TenantBindingFilter());
+		var registration = new FilterRegistrationBean<>(
+				new TenantBindingFilter(List.of(ApiVersion.CONTROL_PREFIX)));
 		registration.setOrder(20);
 		registration.addUrlPatterns("/*");
 		return registration;

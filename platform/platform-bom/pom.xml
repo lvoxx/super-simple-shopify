@@ -59,6 +59,8 @@
 			<dependency><groupId>com.shop</groupId><artifactId>platform-web</artifactId><version>${project.version}</version></dependency>
 			<dependency><groupId>com.shop</groupId><artifactId>platform-test</artifactId><version>${project.version}</version></dependency>
 			<dependency><groupId>com.shop</groupId><artifactId>job-engine</artifactId><version>${project.version}</version></dependency>
+				<dependency><groupId>com.shop</groupId><artifactId>store-api</artifactId><version>${project.version}</version></dependency>
+				<dependency><groupId>com.shop</groupId><artifactId>store-impl</artifactId><version>${project.version}</version></dependency>
 		</dependencies>
 	</dependencyManagement>
 </project>

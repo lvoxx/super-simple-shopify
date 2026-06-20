@@ -7,27 +7,16 @@
 		<groupId>com.shop</groupId>
 		<artifactId>shopify-parent</artifactId>
 		<version>0.0.1-SNAPSHOT</version>
-		<relativePath>../../pom.xml</relativePath>
+		<relativePath>../../../pom.xml</relativePath>
 	</parent>
-	<artifactId>platform-events</artifactId>
-	<name>platform-events</name>
-	<description>Domain-event publisher, transactional outbox, externalization SPI</description>
+	<artifactId>store-api</artifactId>
+	<name>store-api</name>
+	<description>Store bounded context — public API: shop records, ShopCreated event, StoreFacade. Depends only on platform-core.</description>
+
 	<dependencies>
 		<dependency>
 			<groupId>com.shop</groupId>
 			<artifactId>platform-core</artifactId>
-		</dependency>
-		<dependency>
-			<groupId>com.shop</groupId>
-			<artifactId>platform-persistence</artifactId>
-		</dependency>
-		<dependency>
-			<groupId>org.mybatis.spring.boot</groupId>
-			<artifactId>mybatis-spring-boot-starter</artifactId>
-		</dependency>
-		<dependency>
-			<groupId>com.fasterxml.jackson.core</groupId>
-			<artifactId>jackson-databind</artifactId>
 		</dependency>
 		<dependency>
 			<groupId>org.junit.jupiter</groupId>

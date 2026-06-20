@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+		"https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.shop.store.internal.ShopMapper">
+
+	<insert id="insert" parameterType="com.shop.store.internal.ShopRow"
+			useGeneratedKeys="true" keyProperty="id" keyColumn="id">
+		INSERT INTO shop_registry (name, plan, status, locale, primary_domain, created_at, updated_at)
+		VALUES (#{name}, #{plan}, #{status}, #{locale}, #{primaryDomain}, #{createdAt}, #{updatedAt})
+	</insert>
+
+	<select id="findById" resultType="com.shop.store.internal.ShopRow">
+		SELECT id, name, plan, status, locale, primary_domain, created_at, updated_at
+		FROM shop_registry
+		WHERE id = #{id}
+	</select>
+
+	<select id="findByHost" resultType="com.shop.store.internal.ShopRow">
+		SELECT s.id, s.name, s.plan, s.status, s.locale, s.primary_domain, s.created_at, s.updated_at
+		FROM shop_registry s
+		JOIN shop_domain d ON d.shop_id = s.id
+		WHERE d.host = #{host}
+	</select>
+
+</mapper>

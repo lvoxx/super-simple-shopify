@@ -7,12 +7,18 @@
 		<groupId>com.shop</groupId>
 		<artifactId>shopify-parent</artifactId>
 		<version>0.0.1-SNAPSHOT</version>
-		<relativePath>../../pom.xml</relativePath>
+		<relativePath>../../../pom.xml</relativePath>
 	</parent>
-	<artifactId>platform-events</artifactId>
-	<name>platform-events</name>
-	<description>Domain-event publisher, transactional outbox, externalization SPI</description>
+	<artifactId>store-impl</artifactId>
+	<name>store-impl</name>
+	<description>Store bounded context — implementation: control-plane shop registry, shard assignment, ShopCreated.</description>
+
 	<dependencies>
+		<dependency>
+			<groupId>com.shop</groupId>
+			<artifactId>store-api</artifactId>
+			<version>${project.version}</version>
+		</dependency>
 		<dependency>
 			<groupId>com.shop</groupId>
 			<artifactId>platform-core</artifactId>
@@ -22,16 +28,22 @@
 			<artifactId>platform-persistence</artifactId>
 		</dependency>
 		<dependency>
-			<groupId>org.mybatis.spring.boot</groupId>
-			<artifactId>mybatis-spring-boot-starter</artifactId>
+			<groupId>com.shop</groupId>
+			<artifactId>platform-events</artifactId>
 		</dependency>
 		<dependency>
-			<groupId>com.fasterxml.jackson.core</groupId>
-			<artifactId>jackson-databind</artifactId>
+			<groupId>com.shop</groupId>
+			<artifactId>platform-web</artifactId>
 		</dependency>
+
 		<dependency>
 			<groupId>org.junit.jupiter</groupId>
 			<artifactId>junit-jupiter</artifactId>
+			<scope>test</scope>
+		</dependency>
+		<dependency>
+			<groupId>org.assertj</groupId>
+			<artifactId>assertj-core</artifactId>
 			<scope>test</scope>
 		</dependency>
 	</dependencies>

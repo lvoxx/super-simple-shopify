@@ -7,17 +7,42 @@ import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import java.io.IOException;
+import java.util.List;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 /**
- * Scaffold filter that resolves the tenant and binds it to {@link TenantContext} (a JDK 25
- * {@code ScopedValue}) for the lifetime of the request. Phase 0 resolves the shop from the
- * {@code X-Shop-Id} header; Phase 1 replaces this with host/domain + authenticated-session
- * resolution. A missing/invalid tenant is a hard failure, never a silent default.
+ * Resolves the tenant and binds it to {@link TenantContext} (a JDK 25 {@code ScopedValue}) for the
+ * lifetime of the request. Phase 0 resolves the shop from the {@code X-Shop-Id} header (injected by the
+ * gateway after authentication); Phase 1+ adds host/domain resolution. A missing/invalid tenant is a
+ * hard failure, never a silent default.
+ *
+ * <p>Some paths are <strong>not</strong> tenant-scoped — notably the control-plane provisioning surface
+ * ({@code /api/v1/control/**}), where the shop does not exist yet. Those prefixes are passed in and
+ * skipped via {@link #shouldNotFilter}.
  */
 public class TenantBindingFilter extends OncePerRequestFilter {
 
 	public static final String SHOP_HEADER = "X-Shop-Id";
+
+	private final List<String> openPathPrefixes;
+
+	public TenantBindingFilter() {
+		this(List.of());
+	}
+
+	/**
+	 * @param openPathPrefixes request-path prefixes that are not tenant-scoped (e.g. the control-plane
+	 *                         provisioning surface) and so skip tenant resolution entirely
+	 */
+	public TenantBindingFilter(List<String> openPathPrefixes) {
+		this.openPathPrefixes = List.copyOf(openPathPrefixes);
+	}
+
+	@Override
+	protected boolean shouldNotFilter(HttpServletRequest request) {
+		String path = request.getRequestURI();
+		return openPathPrefixes.stream().anyMatch(path::startsWith);
+	}
 
 	@Override
 	protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response,

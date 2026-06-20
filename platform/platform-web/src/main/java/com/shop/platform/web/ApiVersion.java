@@ -11,6 +11,12 @@ public final class ApiVersion {
 	/** Path prefix convention, e.g. {@code /api/v1/...}. */
 	public static final String V1_PREFIX = "/api/" + V1;
 
+	/**
+	 * Control-plane (non-tenant) path prefix, e.g. {@code /api/v1/control/...}. Endpoints under it
+	 * provision/administer shops before a tenant exists, so tenant binding skips this prefix.
+	 */
+	public static final String CONTROL_PREFIX = V1_PREFIX + "/control";
+
 	private ApiVersion() {
 	}
 }
