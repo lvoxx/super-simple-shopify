@@ -74,6 +74,22 @@
 		</dependencies>
 	</dependencyManagement>
 
+	<!--
+		Every Java module in this reactor tests with JUnit 5. Declaring it here (test scope) puts a
+		JUnit Platform engine on every module's test classpath, so surefire can honour the inherited
+		`excludedGroups` (integration tag) even in modules that ship no tests of their own — without it,
+		surefire 3.5.x aborts those modules with "groups/excludedGroups require ... a specific engine".
+		Pom-packaged modules (platform-bom) ignore it; modules that also declare junit-jupiter are
+		unaffected (the version is managed by the Spring Boot parent's JUnit BOM).
+	-->
+	<dependencies>
+		<dependency>
+			<groupId>org.junit.jupiter</groupId>
+			<artifactId>junit-jupiter</artifactId>
+			<scope>test</scope>
+		</dependency>
+	</dependencies>
+
 	<build>
 		<pluginManagement>
 			<plugins>
