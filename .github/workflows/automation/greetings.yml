@@ -1,0 +1,55 @@
+name: Greetings
+
+on:
+pull_request_target:
+issues:
+
+jobs:
+greeting:
+runs-on: ubuntu-latest
+permissions:
+issues: write
+pull-requests: write
+
+```
+steps:
+  - uses: actions/first-interaction@v1
+    with:
+      repo-token: ${{ secrets.GITHUB_TOKEN }}
+
+      issue-message: |
+        👋 Thanks for opening your first issue!
+
+        Before we proceed:
+        - Please ensure you provide clear reproduction steps.
+        - Include logs or stack traces if related to Spring Boot runtime.
+        - Mention module/service name if using a multi-module setup.
+
+        📌 Project conventions:
+        - Spring services should be generated via Spring Init (SDKMAN).
+        - Database changes are handled via infrastructure migration (not inside services).
+        - MyBatis is used for querying instead of JPA.
+
+        We’ll review your issue shortly 🚀
+
+      pr-message: |
+        🎉 Thanks for your first Pull Request!
+
+        Please make sure your PR follows these rules:
+
+        ✅ Build & structure:
+        - Project builds successfully using Maven/Gradle
+        - Follow standard Spring Boot project structure
+        - No manual service scaffolding (use Spring Init CLI)
+
+        ✅ Code quality:
+        - Code passes all tests
+        - Avoid business logic inside controllers
+        - Use Model Mapper + validation where applicable
+
+        ✅ Database:
+        - Do NOT include schema migration inside this repo
+        - Use MyBatis for queries
+
+        🚀 CI checks will run automatically. Please fix any failures before requesting review.
+```
